@@ -1,8 +1,11 @@
-import { Button, ButtonProps, Tooltip } from 'insomnia-components';
-import React, { FunctionComponent, useMemo } from 'react';
-import styled from 'styled-components';
+import { Button, ButtonProps, Tooltip } from "insomnia-components";
+import React, { FunctionComponent, useMemo } from "react";
+import {
+  getGrpcPathSegments,
+  getShortGrpcPath,
+} from "../../../../common/grpc-paths";
 
-import { getGrpcPathSegments, getShortGrpcPath } from '../../../../common/grpc-paths';
+import styled from "styled-components";
 
 const FlexSpaceBetween = styled.span`
   width: 100%;
@@ -23,19 +26,26 @@ const useLabel = (fullPath?: string) =>
       return getShortGrpcPath(segments, fullPath);
     }
 
-    return 'Select Method';
+    return "Select Method";
   }, [fullPath]);
 
 const buttonProps: ButtonProps = {
-  className: 'tall wide',
-  variant: 'text',
-  size: 'medium',
-  radius: '0',
+  className: "tall wide",
+  variant: "text",
+  size: "medium",
+  radius: "0",
 };
 
-export const GrpcMethodDropdownButton: FunctionComponent<Props> = ({ fullPath }) => (
+export const GrpcMethodDropdownButton: FunctionComponent<Props> = ({
+  fullPath,
+}) => (
   <Button {...buttonProps}>
-    <Tooltip className="tall wide" message={fullPath} position="bottom" delay={500}>
+    <Tooltip
+      className="tall wide"
+      message={fullPath}
+      position="bottom"
+      delay={500}
+    >
       <FlexSpaceBetween>
         {useLabel(fullPath)}
         <i className="fa fa-caret-down pad-left-sm" />

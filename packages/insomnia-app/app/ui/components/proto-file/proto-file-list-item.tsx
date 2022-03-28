@@ -1,15 +1,15 @@
-import { AsyncButton, Button } from 'insomnia-components';
-import React, { FunctionComponent, useCallback } from 'react';
-
-import type { ProtoFile } from '../../../models/proto-file';
-import { Editable } from '../base/editable';
+import { AsyncButton, Button } from "insomnia-components";
 import type {
   DeleteProtoFileHandler,
   RenameProtoFileHandler,
   SelectProtoFileHandler,
   UpdateProtoFileHandler,
-} from './proto-file-list';
-import { ProtoListItem } from './proto-list-item';
+} from "./proto-file-list";
+import React, { FunctionComponent, useCallback } from "react";
+
+import { Editable } from "../base/editable";
+import type { ProtoFile } from "../../../models/proto-file";
+import { ProtoListItem } from "./proto-list-item";
 
 interface Props {
   protoFile: ProtoFile;
@@ -34,26 +34,29 @@ export const ProtoFileListItem: FunctionComponent<Props> = ({
 }) => {
   const { name, _id } = protoFile;
   // Don't re-instantiate the callbacks if the dependencies have not changed
-  const handleSelectCallback = useCallback(() => handleSelect(_id), [handleSelect, _id]);
+  const handleSelectCallback = useCallback(
+    () => handleSelect(_id),
+    [handleSelect, _id]
+  );
   const handleDeleteCallback = useCallback(
     async (e: React.SyntheticEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       await handleDelete(protoFile);
     },
-    [handleDelete, protoFile],
+    [handleDelete, protoFile]
   );
   const handleRenameCallback = useCallback(
     async (newName: string) => {
       await handleRename(protoFile, newName);
     },
-    [handleRename, protoFile],
+    [handleRename, protoFile]
   );
   const handleUpdateCallback = useCallback(
     async (e: React.SyntheticEvent<HTMLButtonElement>) => {
       e.stopPropagation();
       await handleUpdate(protoFile);
     },
-    [handleUpdate, protoFile],
+    [handleUpdate, protoFile]
   );
   const isReadOnly = indentLevel > 0;
   return (
@@ -73,7 +76,12 @@ export const ProtoFileListItem: FunctionComponent<Props> = ({
         <>
           <span className="wide">
             <i className="fa fa-file-o pad-right-sm" />
-            <Editable className="wide" onSubmit={handleRenameCallback} value={name} preventBlank />
+            <Editable
+              className="wide"
+              onSubmit={handleRenameCallback}
+              value={name}
+              preventBlank
+            />
           </span>
           <div className="row">
             <AsyncButton

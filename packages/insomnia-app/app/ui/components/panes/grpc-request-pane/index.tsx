@@ -1,29 +1,32 @@
-import { SvgIcon } from 'insomnia-components';
-import React, { FunctionComponent, useCallback } from 'react';
-import { Tab, TabList, TabPanel, Tabs } from 'react-tabs';
-import styled from 'styled-components';
+import { Pane, PaneBody, PaneHeader } from "../pane";
+import React, { FunctionComponent, useCallback } from "react";
+import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
+import {
+  getCommonHeaderNames,
+  getCommonHeaderValues,
+} from "../../../../common/common-headers";
 
-import { getCommonHeaderNames, getCommonHeaderValues } from '../../../../common/common-headers';
-import { documentationLinks } from '../../../../common/documentation';
-import { hotKeyRefs } from '../../../../common/hotkeys';
-import { executeHotKey } from '../../../../common/hotkeys-listener';
-import type { GrpcRequest } from '../../../../models/grpc-request';
-import type { Settings } from '../../../../models/settings';
-import { useGrpc } from '../../../context/grpc';
-import { GrpcSendButton } from '../../buttons/grpc-send-button';
-import { OneLineEditor } from '../../codemirror/one-line-editor';
-import { GrpcMethodDropdown } from '../../dropdowns/grpc-method-dropdown/grpc-method-dropdown';
-import { ErrorBoundary } from '../../error-boundary';
-import { KeyValueEditor } from '../../key-value-editor/key-value-editor';
-import { KeydownBinder } from '../../keydown-binder';
-import { GrpcTabbedMessages } from '../../viewers/grpc-tabbed-messages';
-import { EmptyStatePane } from '../empty-state-pane';
-import { Pane, PaneBody, PaneHeader } from '../pane';
-import useActionHandlers from './use-action-handlers';
-import useChangeHandlers from './use-change-handlers';
-import useExistingGrpcUrls from './use-existing-grpc-urls';
-import useProtoFileReload from './use-proto-file-reload';
-import useSelectedMethod from './use-selected-method';
+import { EmptyStatePane } from "../empty-state-pane";
+import { ErrorBoundary } from "../../error-boundary";
+import { GrpcMethodDropdown } from "../../dropdowns/grpc-method-dropdown/grpc-method-dropdown";
+import type { GrpcRequest } from "../../../../models/grpc-request";
+import { GrpcSendButton } from "../../buttons/grpc-send-button";
+import { GrpcTabbedMessages } from "../../viewers/grpc-tabbed-messages";
+import { KeyValueEditor } from "../../key-value-editor/key-value-editor";
+import { KeydownBinder } from "../../keydown-binder";
+import { OneLineEditor } from "../../codemirror/one-line-editor";
+import type { Settings } from "../../../../models/settings";
+import { SvgIcon } from "insomnia-components";
+import { documentationLinks } from "../../../../common/documentation";
+import { executeHotKey } from "../../../../common/hotkeys-listener";
+import { hotKeyRefs } from "../../../../common/hotkeys";
+import styled from "styled-components";
+import useActionHandlers from "./use-action-handlers";
+import useChangeHandlers from "./use-change-handlers";
+import useExistingGrpcUrls from "./use-existing-grpc-urls";
+import { useGrpc } from "../../../context/grpc";
+import useProtoFileReload from "./use-proto-file-reload";
+import useSelectedMethod from "./use-selected-method";
 
 interface Props {
   forceRefreshKey: number;
@@ -63,26 +66,39 @@ export const GrpcRequestPane: FunctionComponent<Props> = ({
   const selection = useSelectedMethod(state, activeRequest);
   const { method, methodType, methodTypeLabel, enableClientStream } = selection;
   const handleChange = useChangeHandlers(activeRequest, dispatch);
-  // @ts-expect-error -- TSCONVERSION methodType can be undefined
-  const handleAction = useActionHandlers(activeRequest._id, environmentId, methodType, dispatch);
-  const getExistingGrpcUrls = useExistingGrpcUrls(workspaceId, activeRequest._id);
+  const handleAction = useActionHandlers(
+    activeRequest._id,
+    environmentId,
+    // @ts-expect-error -- TSCONVERSION methodType can be undefined
+    methodType,
+    dispatch
+  );
+  const getExistingGrpcUrls = useExistingGrpcUrls(
+    workspaceId,
+    activeRequest._id
+  );
   // Used to refresh input fields to their default value when switching between requests.
   // This is a common pattern in this codebase.
   const uniquenessKey = `${forceRefreshKey}::${activeRequest._id}`;
 
   const { start } = handleAction;
-  const _handleKeyDown = useCallback((event: KeyboardEvent) => {
-    if (method && !running) {
-      executeHotKey(event, hotKeyRefs.REQUEST_SEND, start);
-    }
-  }, [method, running, start]);
+  const _handleKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if (method && !running) {
+        executeHotKey(event, hotKeyRefs.REQUEST_SEND, start);
+      }
+    },
+    [method, running, start]
+  );
 
   return (
     <KeydownBinder onKeydown={_handleKeyDown}>
       <Pane type="request">
         <PaneHeader>
           <StyledUrlBar>
-            <div className="method-grpc pad-right pad-left vertically-center">gRPC</div>
+            <div className="method-grpc pad-right pad-left vertically-center">
+              gRPC
+            </div>
             <StyledUrlEditor title={activeRequest.url}>
               <OneLineEditor
                 key={uniquenessKey}
@@ -138,15 +154,22 @@ export const GrpcRequestPane: FunctionComponent<Props> = ({
               <TabPanel className="react-tabs__tab-panel">
                 <div className="tall wide scrollable-container">
                   <div className="scrollable">
-                    <ErrorBoundary key={uniquenessKey} errorClassName="font-error pad text-center">
+                    <ErrorBoundary
+                      key={uniquenessKey}
+                      errorClassName="font-error pad text-center"
+                    >
                       <KeyValueEditor
                         sortable
                         namePlaceholder="header"
                         valuePlaceholder="value"
                         descriptionPlaceholder="description"
                         pairs={activeRequest.metadata}
-                        handleGetAutocompleteNameConstants={getCommonHeaderNames}
-                        handleGetAutocompleteValueConstants={getCommonHeaderValues}
+                        handleGetAutocompleteNameConstants={
+                          getCommonHeaderNames
+                        }
+                        handleGetAutocompleteValueConstants={
+                          getCommonHeaderValues
+                        }
                         onChange={handleChange.metadata}
                       />
                     </ErrorBoundary>

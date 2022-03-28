@@ -1,3 +1,29 @@
+import * as _apiSpec from "./api-spec";
+import * as _clientCertificate from "./client-certificate";
+import * as _cookieJar from "./cookie-jar";
+import * as _environment from "./environment";
+import * as _gitRepository from "./git-repository";
+import * as _grpcRequest from "./grpc-request";
+import * as _grpcRequestMeta from "./grpc-request-meta";
+import * as _oAuth2Token from "./o-auth-2-token";
+import * as _pluginData from "./plugin-data";
+import * as _project from "./project";
+import * as _protoDirectory from "./proto-directory";
+import * as _protoFile from "./proto-file";
+import * as _request from "./request";
+import * as _requestGroup from "./request-group";
+import * as _requestGroupMeta from "./request-group-meta";
+import * as _requestMeta from "./request-meta";
+import * as _requestVersion from "./request-version";
+import * as _response from "./response";
+import * as _settings from "./settings";
+import * as _stats from "./stats";
+import * as _unitTest from "./unit-test";
+import * as _unitTestResult from "./unit-test-result";
+import * as _unitTestSuite from "./unit-test-suite";
+import * as _workspace from "./workspace";
+import * as _workspaceMeta from "./workspace-meta";
+
 import {
   EXPORT_TYPE_API_SPEC,
   EXPORT_TYPE_COOKIE_JAR,
@@ -10,33 +36,8 @@ import {
   EXPORT_TYPE_UNIT_TEST,
   EXPORT_TYPE_UNIT_TEST_SUITE,
   EXPORT_TYPE_WORKSPACE,
-} from '../common/constants';
-import { generateId, pluralize } from '../common/misc';
-import * as _apiSpec from './api-spec';
-import * as _clientCertificate from './client-certificate';
-import * as _cookieJar from './cookie-jar';
-import * as _environment from './environment';
-import * as _gitRepository from './git-repository';
-import * as _grpcRequest from './grpc-request';
-import * as _grpcRequestMeta from './grpc-request-meta';
-import * as _oAuth2Token from './o-auth-2-token';
-import * as _pluginData from './plugin-data';
-import * as _project from './project';
-import * as _protoDirectory from './proto-directory';
-import * as _protoFile from './proto-file';
-import * as _request from './request';
-import * as _requestGroup from './request-group';
-import * as _requestGroupMeta from './request-group-meta';
-import * as _requestMeta from './request-meta';
-import * as _requestVersion from './request-version';
-import * as _response from './response';
-import * as _settings from './settings';
-import * as _stats from './stats';
-import * as _unitTest from './unit-test';
-import * as _unitTestResult from './unit-test-result';
-import * as _unitTestSuite from './unit-test-suite';
-import * as _workspace from './workspace';
-import * as _workspaceMeta from './workspace-meta';
+} from "../common/constants";
+import { generateId, pluralize } from "../common/misc";
 
 export interface BaseModel {
   _id: string;
@@ -49,6 +50,7 @@ export interface BaseModel {
   created: number;
   isPrivate: boolean;
   name: string;
+  protoPath: string;
 }
 
 // Reference to each model
@@ -112,7 +114,7 @@ export function all() {
 }
 
 export function types() {
-  return all().map(model => model.type);
+  return all().map((model) => model.type);
 }
 
 export function canSync(d: BaseModel) {
@@ -130,14 +132,16 @@ export function canSync(d: BaseModel) {
 }
 
 export function getModel(type: string) {
-  return all().find(m => m.type === type) || null;
+  return all().find((m) => m.type === type) || null;
 }
 
 export function mustGetModel(type: string) {
   const model = getModel(type);
 
   if (!model) {
-    throw new Error(`The model type ${type} must exist but could not be found.`);
+    throw new Error(
+      `The model type ${type} must exist but could not be found.`
+    );
   }
 
   return model;
@@ -152,7 +156,7 @@ export function getModelName(type: string, count = 1) {
   const model = getModel(type);
 
   if (!model) {
-    return 'Unknown';
+    return "Unknown";
   } else if (count === 1) {
     return model.name;
   } else {
@@ -160,14 +164,19 @@ export function getModelName(type: string, count = 1) {
   }
 }
 
-export async function initModel<T extends BaseModel>(type: string, ...sources: Record<string, any>[]): Promise<T> {
+export async function initModel<T extends BaseModel>(
+  type: string,
+  ...sources: Record<string, any>[]
+): Promise<T> {
   const model = getModel(type);
 
   if (!model) {
     const choices = all()
-      .map(m => m.type)
-      .join(', ');
-    throw new Error(`Tried to init invalid model "${type}". Choices are ${choices}`);
+      .map((m) => m.type)
+      .join(", ");
+    throw new Error(
+      `Tried to init invalid model "${type}". Choices are ${choices}`
+    );
   }
 
   // Define global default fields
@@ -179,8 +188,9 @@ export async function initModel<T extends BaseModel>(type: string, ...sources: R
       parentId: null,
       modified: Date.now(),
       created: Date.now(),
+      protoPath: "",
     },
-    model.init(),
+    model.init()
   );
   const fullObject = Object.assign({}, objectDefaults, ...sources);
 

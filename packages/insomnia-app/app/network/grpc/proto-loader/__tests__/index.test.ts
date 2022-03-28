@@ -1,27 +1,33 @@
-import path from 'path';
+import * as models from "../../../../models";
 
-import { globalBeforeEach } from '../../../../__jest__/before-each';
-import * as models from '../../../../models';
-import { loadMethods } from '../index';
-import writeProtoFile from '../write-proto-file';
+import { globalBeforeEach } from "../../../../__jest__/before-each";
+import { loadMethods } from "../index";
+import path from "path";
+import writeProtoFile from "../write-proto-file";
 
-jest.mock('../write-proto-file', () => ({
+jest.mock("../write-proto-file", () => ({
   __esModule: true,
   default: jest.fn(),
 }));
 
-describe('loadMethods', () => {
-  const protoFilePath = path.join(__dirname, '../../__fixtures__/library/hello.proto');
+describe("loadMethods", () => {
+  const protoFilePath = path.join(
+    __dirname,
+    "../../__fixtures__/library/hello.proto"
+  );
   beforeEach(() => {
     globalBeforeEach();
     jest.resetAllMocks();
   });
 
-  it('should load methods', async () => {
+  it("should load methods", async () => {
     const w = await models.workspace.create();
     const pf = await models.protoFile.create({
       parentId: w._id,
-      protoText: 'this is just a placeholder because writing to a file is mocked',
+      protoText:
+        "this is just a placeholder because writing to a file is mocked",
+      protoPath:
+        "this is just a placeholder because wiritng to a file is mocked",
     });
     writeProtoFile.mockResolvedValue({
       filePath: protoFilePath,
@@ -30,21 +36,21 @@ describe('loadMethods', () => {
     const methods = await loadMethods(pf);
     expect(writeProtoFile).toHaveBeenCalledWith(pf);
     expect(methods).toHaveLength(4);
-    expect(methods.map(c => c.path)).toStrictEqual(
+    expect(methods.map((c) => c.path)).toStrictEqual(
       expect.arrayContaining([
-        '/hello.HelloService/SayHello',
-        '/hello.HelloService/LotsOfReplies',
-        '/hello.HelloService/LotsOfGreetings',
-        '/hello.HelloService/BidiHello',
-      ]),
+        "/hello.HelloService/SayHello",
+        "/hello.HelloService/LotsOfReplies",
+        "/hello.HelloService/LotsOfGreetings",
+        "/hello.HelloService/BidiHello",
+      ])
     );
   });
 
-  it('should load no methods if protofile does not exist or is empty', async () => {
+  it("should load no methods if protofile does not exist or is empty", async () => {
     const w = await models.workspace.create();
     const pf = await models.protoFile.create({
       parentId: w._id,
-      protoText: '',
+      protoText: "",
     });
     await expect(loadMethods(undefined)).resolves.toHaveLength(0);
     await expect(loadMethods(pf)).resolves.toHaveLength(0);

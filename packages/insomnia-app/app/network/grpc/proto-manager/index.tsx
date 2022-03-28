@@ -1,23 +1,27 @@
-import fs from 'fs';
-import path from 'path';
-import React from 'react';
+import * as models from "../../../models";
+import * as protoLoader from "../proto-loader";
 
-import { database as db } from '../../../common/database';
-import { selectFileOrFolder } from '../../../common/select-file-or-folder';
-import * as models from '../../../models';
-import type { ProtoDirectory } from '../../../models/proto-directory';
-import { isProtoFile, ProtoFile } from '../../../models/proto-file';
-import { showAlert, showError } from '../../../ui/components/modals';
-import * as protoLoader from '../proto-loader';
-import ingestProtoDirectory from './ingest-proto-directory';
+import { ProtoFile, isProtoFile } from "../../../models/proto-file";
+import { showAlert, showError } from "../../../ui/components/modals";
 
-export async function deleteFile(protoFile: ProtoFile, callback: (arg0: string) => void) {
+import type { ProtoDirectory } from "../../../models/proto-directory";
+import React from "react";
+import { database as db } from "../../../common/database";
+import fs from "fs";
+import ingestProtoDirectory from "./ingest-proto-directory";
+import path from "path";
+import { selectFileOrFolder } from "../../../common/select-file-or-folder";
+
+export async function deleteFile(
+  protoFile: ProtoFile,
+  callback: (arg0: string) => void
+) {
   showAlert({
     title: `Delete ${protoFile.name}`,
     message: (
       <span>
-        Really delete <strong>{protoFile.name}</strong>? All requests that use this proto file will
-        stop working.
+        Really delete <strong>{protoFile.name}</strong>? All requests that use
+        this proto file will stop working.
       </span>
     ),
     addCancel: true,
@@ -28,20 +32,24 @@ export async function deleteFile(protoFile: ProtoFile, callback: (arg0: string) 
   });
 }
 
-export async function deleteDirectory(protoDirectory: ProtoDirectory, callback: (arg0: string[]) => void) {
+export async function deleteDirectory(
+  protoDirectory: ProtoDirectory,
+  callback: (arg0: string[]) => void
+) {
   showAlert({
     title: `Delete ${protoDirectory.name}`,
     message: (
       <span>
-        Really delete <strong>{protoDirectory.name}</strong> and all proto files contained within?
-        All requests that use these proto files will stop working.
+        Really delete <strong>{protoDirectory.name}</strong> and all proto files
+        contained within? All requests that use these proto files will stop
+        working.
       </span>
     ),
     addCancel: true,
     onConfirm: async () => {
       const descendant = await db.withDescendants(protoDirectory);
       await models.protoDirectory.remove(protoDirectory);
-      callback(descendant.map(c => c._id));
+      callback(descendant.map((c) => c._id));
     },
   });
 }
@@ -54,8 +62,8 @@ export async function addDirectory(workspaceId: string) {
   try {
     // Select file
     const { filePath, canceled } = await selectFileOrFolder({
-      itemTypes: ['directory'],
-      extensions: ['proto'],
+      itemTypes: ["directory"],
+      extensions: ["proto"],
     });
 
     // Exit if no file selected
@@ -69,7 +77,7 @@ export async function addDirectory(workspaceId: string) {
 
     if (error) {
       showError({
-        title: 'Failed to import',
+        title: "Failed to import",
         message: `An unexpected error occurred when reading ${filePath}`,
         error,
       });
@@ -80,7 +88,7 @@ export async function addDirectory(workspaceId: string) {
     // Show warning if no files found
     if (!createdDir) {
       showAlert({
-        title: 'No files found',
+        title: "No files found",
         message: `No .proto files were found under ${filePath}.`,
       });
       return;
@@ -95,7 +103,7 @@ export async function addDirectory(workspaceId: string) {
         await protoLoader.loadMethods(file);
       } catch (e) {
         showError({
-          title: 'Invalid Proto File',
+          title: "Invalid Proto File",
           message: `The file ${file.name} could not be parsed`,
           error: e,
         });
@@ -123,12 +131,19 @@ export async function addDirectory(workspaceId: string) {
   }
 }
 
+export async function getContent(filePath: string) {
+  const contents = await fs.promises.readFile(filePath, "utf-8");
+  const name = path.basename(filePath);
+
+  return { contents, name };
+}
+
 async function _readFile() {
   try {
     // Select file
     const { filePath, canceled } = await selectFileOrFolder({
-      itemTypes: ['file'],
-      extensions: ['proto'],
+      itemTypes: ["file"],
+      extensions: ["proto"],
     });
 
     // Exit if no file selected
@@ -141,7 +156,7 @@ async function _readFile() {
       await protoLoader.loadMethodsFromPath(filePath);
     } catch (e) {
       showError({
-        title: 'Invalid Proto File',
+        title: "Invalid Proto File",
         message: `The file ${filePath} and could not be parsed`,
         error: e,
       });
@@ -149,11 +164,12 @@ async function _readFile() {
     }
 
     // Read contents
-    const contents = await fs.promises.readFile(filePath, 'utf-8');
-    const name = path.basename(filePath);
+    const { contents, name } = await getContent(filePath);
+
     return {
       fileName: name,
       fileContents: contents,
+      filePath,
     };
   } catch (e) {
     showError({
@@ -163,7 +179,10 @@ async function _readFile() {
   return undefined;
 }
 
-export async function addFile(workspaceId: string, callback: (arg0: string) => void) {
+export async function addFile(
+  workspaceId: string,
+  callback: (arg0: string) => void
+) {
   const result = await _readFile();
 
   if (result) {
@@ -171,18 +190,24 @@ export async function addFile(workspaceId: string, callback: (arg0: string) => v
       name: result.fileName,
       parentId: workspaceId,
       protoText: result.fileContents,
+      protoPath: result.filePath,
     });
+
     callback(newFile._id);
   }
 }
 
-export async function updateFile(protoFile: ProtoFile, callback: (arg0: string) => void) {
+export async function updateFile(
+  protoFile: ProtoFile,
+  callback: (arg0: string) => void
+) {
   const result = await _readFile();
 
   if (result) {
     const updatedFile = await models.protoFile.update(protoFile, {
       name: result.fileName,
       protoText: result.fileContents,
+      protoPath: result.filePath,
     });
     callback(updatedFile._id);
   }

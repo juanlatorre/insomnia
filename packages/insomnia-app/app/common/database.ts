@@ -1,21 +1,21 @@
-/* eslint-disable prefer-rest-params -- don't want to change ...arguments usage for these sensitive functions without more testing */
-import electron from 'electron';
-import NeDB from 'nedb';
-import fsPath from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import * as models from "../models/index";
 
-import { mustGetModel } from '../models';
-import { CookieJar } from '../models/cookie-jar';
-import { Environment } from '../models/environment';
-import { GitRepository } from '../models/git-repository';
-import { getMonkeyPatchedControlledSettings } from '../models/helpers/settings';
-import type { BaseModel } from '../models/index';
-import * as models from '../models/index';
-import { isSettings } from '../models/settings';
-import type { Workspace } from '../models/workspace';
-import { DB_PERSIST_INTERVAL } from './constants';
-import { getDataDirectory } from './electron-helpers';
-import { generateId } from './misc';
+import type { BaseModel } from "../models/index";
+import { CookieJar } from "../models/cookie-jar";
+import { DB_PERSIST_INTERVAL } from "./constants";
+import { Environment } from "../models/environment";
+import { GitRepository } from "../models/git-repository";
+import NeDB from "nedb";
+import type { Workspace } from "../models/workspace";
+/* eslint-disable prefer-rest-params -- don't want to change ...arguments usage for these sensitive functions without more testing */
+import electron from "electron";
+import fsPath from "path";
+import { generateId } from "./misc";
+import { getDataDirectory } from "./electron-helpers";
+import { getMonkeyPatchedControlledSettings } from "../models/helpers/settings";
+import { isSettings } from "../models/settings";
+import { mustGetModel } from "../models";
+import { v4 as uuidv4 } from "uuid";
 
 export interface Query {
   _id?: string | SpecificQuery;
@@ -40,48 +40,51 @@ export interface SpecificQuery {
   $nin?: string[];
 }
 
-export type ModelQuery<T extends BaseModel> = Partial<Record<keyof T, SpecificQuery>>;
+export type ModelQuery<T extends BaseModel> = Partial<
+  Record<keyof T, SpecificQuery>
+>;
 
 export const database = {
-  all: async function<T extends BaseModel>(type: string) {
-    if (db._empty) return _send<T[]>('all', ...arguments);
+  all: async function <T extends BaseModel>(type: string) {
+    if (db._empty) return _send<T[]>("all", ...arguments);
     return database.find<T>(type);
   },
 
-  batchModifyDocs: async function({ upsert = [], remove = [] }: Operation) {
-    if (db._empty) return _send<void>('batchModifyDocs', ...arguments);
+  batchModifyDocs: async function ({ upsert = [], remove = [] }: Operation) {
+    if (db._empty) return _send<void>("batchModifyDocs", ...arguments);
     const flushId = await database.bufferChanges();
 
     // Perform from least to most dangerous
-    await Promise.all(upsert.map(doc => database.upsert(doc, true)));
-    await Promise.all(remove.map(doc => database.unsafeRemove(doc, true)));
+    await Promise.all(upsert.map((doc) => database.upsert(doc, true)));
+    await Promise.all(remove.map((doc) => database.unsafeRemove(doc, true)));
 
     await database.flushChanges(flushId);
   },
 
   /** buffers database changes and returns a buffer id */
-  bufferChanges: async function(millis = 1000) {
-    if (db._empty) return _send<number>('bufferChanges', ...arguments);
+  bufferChanges: async function (millis = 1000) {
+    if (db._empty) return _send<number>("bufferChanges", ...arguments);
     bufferingChanges = true;
     setTimeout(database.flushChanges, millis);
     return ++bufferChangesId;
   },
 
   /** buffers database changes and returns a buffer id */
-  bufferChangesIndefinitely: async function() {
-    if (db._empty) return _send<number>('bufferChangesIndefinitely', ...arguments);
+  bufferChangesIndefinitely: async function () {
+    if (db._empty)
+      return _send<number>("bufferChangesIndefinitely", ...arguments);
     bufferingChanges = true;
     return ++bufferChangesId;
   },
 
-  CHANGE_INSERT: 'insert',
+  CHANGE_INSERT: "insert",
 
-  CHANGE_UPDATE: 'update',
+  CHANGE_UPDATE: "update",
 
-  CHANGE_REMOVE: 'remove',
+  CHANGE_REMOVE: "remove",
 
-  count: async function<T extends BaseModel>(type: string, query: Query = {}) {
-    if (db._empty) return _send<number>('count', ...arguments);
+  count: async function <T extends BaseModel>(type: string, query: Query = {}) {
+    if (db._empty) return _send<number>("count", ...arguments);
     return new Promise<number>((resolve, reject) => {
       (db[type] as NeDB<T>).count(query, (err, count) => {
         if (err) {
@@ -93,19 +96,31 @@ export const database = {
     });
   },
 
-  docCreate: async <T extends BaseModel>(type: string, ...patches: Patch<T>[]) => {
+  docCreate: async <T extends BaseModel>(
+    type: string,
+    ...patches: Patch<T>[]
+  ) => {
     const doc = await models.initModel<T>(
       type,
       ...patches,
       // Fields that the user can't touch
       {
-        type: type,
-      },
+        type,
+      }
     );
-    return database.insert<T>(doc);
+
+    const insert = await database.insert<T>(doc);
+
+    return {
+      ...insert,
+      protoPath: doc.protoPath,
+    };
   },
 
-  docUpdate: async <T extends BaseModel>(originalDoc: T, ...patches: Patch<T>[]) => {
+  docUpdate: async <T extends BaseModel>(
+    originalDoc: T,
+    ...patches: Patch<T>[]
+  ) => {
     // No need to re-initialize the model during update; originalDoc will be in a valid state by virtue of loading
     const doc = await models.initModel<T>(
       originalDoc.type,
@@ -115,13 +130,16 @@ export const database = {
       {
         modified: Date.now(),
       },
-      ...patches,
+      ...patches
     );
     return database.update<T>(doc);
   },
 
-  duplicate: async function<T extends BaseModel>(originalDoc: T, patch: Patch<T> = {}) {
-    if (db._empty) return _send<T>('duplicate', ...arguments);
+  duplicate: async function <T extends BaseModel>(
+    originalDoc: T,
+    patch: Patch<T> = {}
+  ) {
+    if (db._empty) return _send<T>("duplicate", ...arguments);
     const flushId = await database.bufferChanges();
 
     async function next<T extends BaseModel>(docToCopy: T, patch: Patch<T>) {
@@ -162,12 +180,12 @@ export const database = {
     return createdDoc;
   },
 
-  find: async function<T extends BaseModel>(
+  find: async function <T extends BaseModel>(
     type: string,
     query: Query | string = {},
-    sort: Sort = { created: 1 },
+    sort: Sort = { created: 1 }
   ) {
-    if (db._empty) return _send<T[]>('find', ...arguments);
+    if (db._empty) return _send<T[]>("find", ...arguments);
     return new Promise<T[]>((resolve, reject) => {
       (db[type] as NeDB<T>)
         .find(query)
@@ -189,13 +207,13 @@ export const database = {
     });
   },
 
-  findMostRecentlyModified: async function<T extends BaseModel>(
+  findMostRecentlyModified: async function <T extends BaseModel>(
     type: string,
     query: Query = {},
-    limit: number | null = null,
+    limit: number | null = null
   ) {
-    if (db._empty) return _send<T[]>('findMostRecentlyModified', ...arguments);
-    return new Promise<T[]>(resolve => {
+    if (db._empty) return _send<T[]>("findMostRecentlyModified", ...arguments);
+    return new Promise<T[]>((resolve) => {
       (db[type] as NeDB<T>)
         .find(query)
         .sort({
@@ -205,7 +223,7 @@ export const database = {
         .limit(limit)
         .exec(async (err, rawDocs) => {
           if (err) {
-            console.warn('[db] Failed to find docs', err);
+            console.warn("[db] Failed to find docs", err);
             resolve([]);
             return;
           }
@@ -221,8 +239,8 @@ export const database = {
     });
   },
 
-  flushChanges: async function(id = 0, fake = false) {
-    if (db._empty) return _send<void>('flushChanges', ...arguments);
+  flushChanges: async function (id = 0, fake = false) {
+    if (db._empty) return _send<void>("flushChanges", ...arguments);
 
     // Only flush if ID is 0 or the current flush ID is the same as passed
     if (id !== 0 && bufferChangesId !== id) {
@@ -248,12 +266,12 @@ export const database = {
       await fn(changes);
     }
     // Notify remote listeners
-    const isMainContext = process.type === 'browser';
-    if (isMainContext){
+    const isMainContext = process.type === "browser";
+    if (isMainContext) {
       const windows = electron.BrowserWindow.getAllWindows();
 
       for (const window of windows) {
-        window.webContents.send('db.changes', changes);
+        window.webContents.send("db.changes", changes);
       }
     }
   },
@@ -264,25 +282,31 @@ export const database = {
     });
   },
 
-  get: async function<T extends BaseModel>(type: string, id?: string) {
-    if (db._empty) return _send<T>('get', ...arguments);
+  get: async function <T extends BaseModel>(type: string, id?: string) {
+    if (db._empty) return _send<T>("get", ...arguments);
 
     // Short circuit IDs used to represent nothing
-    if (!id || id === 'n/a') {
+    if (!id || id === "n/a") {
       return null;
     } else {
       return database.getWhere<T>(type, { _id: id });
     }
   },
 
-  getMostRecentlyModified: async function<T extends BaseModel>(type: string, query: Query = {}) {
-    if (db._empty) return _send<T>('getMostRecentlyModified', ...arguments);
+  getMostRecentlyModified: async function <T extends BaseModel>(
+    type: string,
+    query: Query = {}
+  ) {
+    if (db._empty) return _send<T>("getMostRecentlyModified", ...arguments);
     const docs = await database.findMostRecentlyModified<T>(type, query, 1);
     return docs.length ? docs[0] : null;
   },
 
-  getWhere: async function<T extends BaseModel>(type: string, query: ModelQuery<T> | Query) {
-    if (db._empty) return _send<T>('getWhere', ...arguments);
+  getWhere: async function <T extends BaseModel>(
+    type: string,
+    query: ModelQuery<T> | Query
+  ) {
+    if (db._empty) return _send<T>("getWhere", ...arguments);
     // @ts-expect-error -- TSCONVERSION type narrowing needed
     const docs = await database.find<T>(type, query);
     return docs.length ? docs[0] : null;
@@ -292,13 +316,13 @@ export const database = {
     types: string[],
     config: NeDB.DataStoreOptions = {},
     forceReset = false,
-    consoleLog: typeof console.log = console.log,
+    consoleLog: typeof console.log = console.log
   ) => {
     if (forceReset) {
       changeListeners = [];
 
       for (const attr of Object.keys(db)) {
-        if (attr === '_empty') {
+        if (attr === "_empty") {
           continue;
         }
 
@@ -321,15 +345,15 @@ export const database = {
             filename: filePath,
             corruptAlertThreshold: 0.9,
           },
-          config,
-        ),
+          config
+        )
       );
       collection.persistence.setAutocompactionInterval(DB_PERSIST_INTERVAL);
       db[modelType] = collection;
     }
 
     delete db._empty;
-    electron.ipcMain.on('db.fn', async (e, fnName, replyChannel, ...args) => {
+    electron.ipcMain.on("db.fn", async (e, fnName, replyChannel, ...args) => {
       try {
         const result = await database[fnName](...args);
         e.sender.send(replyChannel, null, result);
@@ -345,12 +369,12 @@ export const database = {
     // TODO: Figure out why this makes tests hang
     if (!config.inMemoryOnly) {
       await _repairDatabase();
-      consoleLog(`[db] Initialized DB at ${getDBFilePath('$TYPE')}`);
+      consoleLog(`[db] Initialized DB at ${getDBFilePath("$TYPE")}`);
     }
 
     // This isn't the best place for this but w/e
     // Listen for response deletions and delete corresponding response body files
-    database.onChange(async changes => {
+    database.onChange(async (changes) => {
       for (const [type, doc] of changes) {
         // TODO(TSCONVERSION) what's returned here is the entire model implementation, not just a model
         // The type definition will be a little confusing
@@ -360,27 +384,42 @@ export const database = {
           continue;
         }
 
-        if (type === database.CHANGE_REMOVE && typeof m.hookRemove === 'function') {
+        if (
+          type === database.CHANGE_REMOVE &&
+          typeof m.hookRemove === "function"
+        ) {
           try {
             await m.hookRemove(doc, consoleLog);
           } catch (err) {
-            consoleLog(`[db] Delete hook failed for ${type} ${doc._id}: ${err.message}`);
+            consoleLog(
+              `[db] Delete hook failed for ${type} ${doc._id}: ${err.message}`
+            );
           }
         }
 
-        if (type === database.CHANGE_INSERT && typeof m.hookInsert === 'function') {
+        if (
+          type === database.CHANGE_INSERT &&
+          typeof m.hookInsert === "function"
+        ) {
           try {
             await m.hookInsert(doc, consoleLog);
           } catch (err) {
-            consoleLog(`[db] Insert hook failed for ${type} ${doc._id}: ${err.message}`);
+            consoleLog(
+              `[db] Insert hook failed for ${type} ${doc._id}: ${err.message}`
+            );
           }
         }
 
-        if (type === database.CHANGE_UPDATE && typeof m.hookUpdate === 'function') {
+        if (
+          type === database.CHANGE_UPDATE &&
+          typeof m.hookUpdate === "function"
+        ) {
           try {
             await m.hookUpdate(doc, consoleLog);
           } catch (err) {
-            consoleLog(`[db] Update hook failed for ${type} ${doc._id}: ${err.message}`);
+            consoleLog(
+              `[db] Update hook failed for ${type} ${doc._id}: ${err.message}`
+            );
           }
         }
       }
@@ -388,7 +427,7 @@ export const database = {
 
     for (const model of models.all()) {
       // @ts-expect-error -- TSCONVERSION optional type on response
-      if (typeof model.hookDatabaseInit === 'function') {
+      if (typeof model.hookDatabaseInit === "function") {
         // @ts-expect-error -- TSCONVERSION optional type on response
         await model.hookDatabaseInit?.(consoleLog);
       }
@@ -396,16 +435,20 @@ export const database = {
   },
 
   initClient: async () => {
-    electron.ipcRenderer.on('db.changes', async (_e, changes) => {
+    electron.ipcRenderer.on("db.changes", async (_e, changes) => {
       for (const fn of changeListeners) {
         await fn(changes);
       }
     });
-    console.log('[db] Initialized DB client');
+    console.log("[db] Initialized DB client");
   },
 
-  insert: async function<T extends BaseModel>(doc: T, fromSync = false, initializeModel = true) {
-    if (db._empty) return _send<T>('insert', ...arguments);
+  insert: async function <T extends BaseModel>(
+    doc: T,
+    fromSync = false,
+    initializeModel = true
+  ) {
+    if (db._empty) return _send<T>("insert", ...arguments);
     return new Promise<T>(async (resolve, reject) => {
       let docWithDefaults: T | null = null;
 
@@ -436,20 +479,20 @@ export const database = {
   },
 
   offChange: (callback: ChangeListener) => {
-    changeListeners = changeListeners.filter(l => l !== callback);
+    changeListeners = changeListeners.filter((l) => l !== callback);
   },
 
-  remove: async function<T extends BaseModel>(doc: T, fromSync = false) {
-    if (db._empty) return _send<void>('remove', ...arguments);
+  remove: async function <T extends BaseModel>(doc: T, fromSync = false) {
+    if (db._empty) return _send<void>("remove", ...arguments);
 
     const flushId = await database.bufferChanges();
 
     const docs = await database.withDescendants(doc);
-    const docIds = docs.map(d => d._id);
-    const types = [...new Set(docs.map(d => d.type))];
+    const docIds = docs.map((d) => d._id);
+    const types = [...new Set(docs.map((d) => d.type))];
 
     // Don't really need to wait for this to be over;
-    types.map(t =>
+    types.map((t) =>
       db[t].remove(
         {
           _id: {
@@ -458,25 +501,28 @@ export const database = {
         },
         {
           multi: true,
-        },
-      ),
+        }
+      )
     );
 
-    docs.map(d => notifyOfChange(database.CHANGE_REMOVE, d, fromSync));
+    docs.map((d) => notifyOfChange(database.CHANGE_REMOVE, d, fromSync));
     await database.flushChanges(flushId);
   },
 
-  removeWhere: async function<T extends BaseModel>(type: string, query: Query) {
-    if (db._empty) return _send<void>('removeWhere', ...arguments);
+  removeWhere: async function <T extends BaseModel>(
+    type: string,
+    query: Query
+  ) {
+    if (db._empty) return _send<void>("removeWhere", ...arguments);
     const flushId = await database.bufferChanges();
 
     for (const doc of await database.find<T>(type, query)) {
       const docs = await database.withDescendants(doc);
-      const docIds = docs.map(d => d._id);
-      const types = [...new Set(docs.map(d => d.type))];
+      const docIds = docs.map((d) => d._id);
+      const types = [...new Set(docs.map((d) => d.type))];
 
       // Don't really need to wait for this to be over;
-      types.map(t =>
+      types.map((t) =>
         db[t].remove(
           {
             _id: {
@@ -485,25 +531,25 @@ export const database = {
           },
           {
             multi: true,
-          },
-        ),
+          }
+        )
       );
-      docs.map(d => notifyOfChange(database.CHANGE_REMOVE, d, false));
+      docs.map((d) => notifyOfChange(database.CHANGE_REMOVE, d, false));
     }
 
     await database.flushChanges(flushId);
   },
 
   /** Removes entries without removing their children */
-  unsafeRemove: async function<T extends BaseModel>(doc: T, fromSync = false) {
-    if (db._empty) return _send<void>('unsafeRemove', ...arguments);
+  unsafeRemove: async function <T extends BaseModel>(doc: T, fromSync = false) {
+    if (db._empty) return _send<void>("unsafeRemove", ...arguments);
 
     (db[doc.type] as NeDB<T>).remove({ _id: doc._id });
     notifyOfChange(database.CHANGE_REMOVE, doc, fromSync);
   },
 
-  update: async function<T extends BaseModel>(doc: T, fromSync = false) {
-    if (db._empty) return _send<T>('update', ...arguments);
+  update: async function <T extends BaseModel>(doc: T, fromSync = false) {
+    if (db._empty) return _send<T>("update", ...arguments);
 
     return new Promise<T>(async (resolve, reject) => {
       let docWithDefaults: T;
@@ -519,7 +565,7 @@ export const database = {
         docWithDefaults,
         // TODO(TSCONVERSION) see comment below, upsert can happen automatically as part of the update
         // @ts-expect-error -- TSCONVERSION expects 4 args but only sent 3. Need to validate what UpdateOptions should be.
-        err => {
+        (err) => {
           if (err) {
             return reject(err);
           }
@@ -527,14 +573,14 @@ export const database = {
           resolve(docWithDefaults);
           // NOTE: This needs to be after we resolve
           notifyOfChange(database.CHANGE_UPDATE, docWithDefaults, fromSync);
-        },
+        }
       );
     });
   },
 
   // TODO(TSCONVERSION) the update method above can now take an upsert property
-  upsert: async function<T extends BaseModel>(doc: T, fromSync = false) {
-    if (db._empty) return _send<T>('upsert', ...arguments);
+  upsert: async function <T extends BaseModel>(doc: T, fromSync = false) {
+    if (db._empty) return _send<T>("upsert", ...arguments);
     const existingDoc = await database.get<T>(doc.type, doc._id);
 
     if (existingDoc) {
@@ -544,8 +590,11 @@ export const database = {
     }
   },
 
-  withAncestors: async function<T extends BaseModel>(doc: T | null, types: string[] = allTypes()) {
-    if (db._empty) return _send<T[]>('withAncestors', ...arguments);
+  withAncestors: async function <T extends BaseModel>(
+    doc: T | null,
+    types: string[] = allTypes()
+  ) {
+    if (db._empty) return _send<T[]>("withAncestors", ...arguments);
 
     if (!doc) {
       return [];
@@ -570,18 +619,18 @@ export const database = {
       }
 
       // Continue searching for children
-      docsToReturn = [
-        ...docsToReturn,
-        ...foundDocs,
-      ];
+      docsToReturn = [...docsToReturn, ...foundDocs];
       return next(foundDocs);
     }
 
     return next([doc]);
   },
 
-  withDescendants: async function<T extends BaseModel>(doc: T | null, stopType: string | null = null): Promise<BaseModel[]> {
-    if (db._empty) return _send<BaseModel[]>('withDescendants', ...arguments);
+  withDescendants: async function <T extends BaseModel>(
+    doc: T | null,
+    stopType: string | null = null
+  ): Promise<BaseModel[]> {
+    if (db._empty) return _send<BaseModel[]>("withDescendants", ...arguments);
     let docsToReturn: BaseModel[] = doc ? [doc] : [];
 
     async function next(docs: (BaseModel | null)[]): Promise<BaseModel[]> {
@@ -602,10 +651,7 @@ export const database = {
         }
 
         for (const more of await Promise.all(promises)) {
-          foundDocs = [
-            ...foundDocs,
-            ...more,
-          ];
+          foundDocs = [...foundDocs, ...more];
         }
       }
 
@@ -648,11 +694,7 @@ function getDBFilePath(modelType: string) {
 let bufferingChanges = false;
 let bufferChangesId = 1;
 
-type ChangeBufferEvent = [
-  event: string,
-  doc: BaseModel,
-  fromSync: boolean
-];
+type ChangeBufferEvent = [event: string, doc: BaseModel, fromSync: boolean];
 
 let changeBuffer: ChangeBufferEvent[] = [];
 
@@ -660,7 +702,11 @@ type ChangeListener = Function;
 
 let changeListeners: ChangeListener[] = [];
 
-async function notifyOfChange<T extends BaseModel>(event: string, doc: T, fromSync: boolean) {
+async function notifyOfChange<T extends BaseModel>(
+  event: string,
+  doc: T,
+  fromSync: boolean
+) {
   let updatedDoc = doc;
 
   // NOTE: this monkeypatching is temporary, and was determined to have the smallest blast radius if it exists here (rather than, say, a reducer or an action creator).
@@ -689,7 +735,7 @@ type Patch<T> = Partial<T>;
 async function _send<T>(fnName: string, ...args: any[]) {
   return new Promise<T>((resolve, reject) => {
     const replyChannel = `db.fn.reply:${uuidv4()}`;
-    electron.ipcRenderer.send('db.fn', fnName, replyChannel, ...args);
+    electron.ipcRenderer.send("db.fn", fnName, replyChannel, ...args);
     electron.ipcRenderer.once(replyChannel, (_e, err, result: T) => {
       if (err) {
         reject(err);
@@ -704,15 +750,19 @@ async function _send<T>(fnName: string, ...args: any[]) {
  * Run various database repair scripts
  */
 export async function _repairDatabase() {
-  console.log('[fix] Running database repairs');
+  console.log("[fix] Running database repairs");
 
-  for (const workspace of await database.find<Workspace>(models.workspace.type)) {
+  for (const workspace of await database.find<Workspace>(
+    models.workspace.type
+  )) {
     await _repairBaseEnvironments(workspace);
     await _fixMultipleCookieJars(workspace);
     await _applyApiSpecName(workspace);
   }
 
-  for (const gitRepository of await database.find<GitRepository>(models.gitRepository.type)) {
+  for (const gitRepository of await database.find<GitRepository>(
+    models.gitRepository.type
+  )) {
     await _fixOldGitURIs(gitRepository);
   }
 }
@@ -728,7 +778,10 @@ async function _applyApiSpecName(workspace: Workspace) {
     return;
   }
 
-  if (!apiSpec.fileName || apiSpec.fileName === models.apiSpec.init().fileName) {
+  if (
+    !apiSpec.fileName ||
+    apiSpec.fileName === models.apiSpec.init().fileName
+  ) {
     await models.apiSpec.update(apiSpec, {
       fileName: workspace.name,
     });
@@ -741,9 +794,12 @@ async function _applyApiSpecName(workspace: Workspace) {
  * moves all children as well.
  */
 async function _repairBaseEnvironments(workspace: Workspace) {
-  const baseEnvironments = await database.find<Environment>(models.environment.type, {
-    parentId: workspace._id,
-  });
+  const baseEnvironments = await database.find<Environment>(
+    models.environment.type,
+    {
+      parentId: workspace._id,
+    }
+  );
 
   // Nothing to do here
   if (baseEnvironments.length <= 1) {
@@ -758,9 +814,12 @@ async function _repairBaseEnvironments(workspace: Workspace) {
     }
 
     chosenBase.data = Object.assign(baseEnvironment.data, chosenBase.data);
-    const subEnvironments = await database.find<Environment>(models.environment.type, {
-      parentId: baseEnvironment._id,
-    });
+    const subEnvironments = await database.find<Environment>(
+      models.environment.type,
+      {
+        parentId: baseEnvironment._id,
+      }
+    );
 
     for (const subEnvironment of subEnvironments) {
       await database.docUpdate(subEnvironment, {
@@ -774,7 +833,9 @@ async function _repairBaseEnvironments(workspace: Workspace) {
 
   // Update remaining base env
   await database.update(chosenBase);
-  console.log(`[fix] Merged ${baseEnvironments.length} base environments under ${workspace.name}`);
+  console.log(
+    `[fix] Merged ${baseEnvironments.length} base environments under ${workspace.name}`
+  );
 }
 
 /**
@@ -800,7 +861,7 @@ async function _fixMultipleCookieJars(workspace: Workspace) {
     }
 
     for (const cookie of cookieJar.cookies) {
-      if (chosenJar.cookies.find(c => c.id === cookie.id)) {
+      if (chosenJar.cookies.find((c) => c.id === cookie.id)) {
         continue;
       }
 
@@ -813,7 +874,9 @@ async function _fixMultipleCookieJars(workspace: Workspace) {
 
   // Update remaining jar
   await database.update(chosenJar);
-  console.log(`[fix] Merged ${cookieJars.length} cookie jars under ${workspace.name}`);
+  console.log(
+    `[fix] Merged ${cookieJars.length} cookie jars under ${workspace.name}`
+  );
 }
 
 // Append .git to old git URIs to mimic previous isomorphic-git behaviour
@@ -822,8 +885,8 @@ async function _fixOldGitURIs(doc: GitRepository) {
     return;
   }
 
-  if (!doc.uri.endsWith('.git')) {
-    doc.uri += '.git';
+  if (!doc.uri.endsWith(".git")) {
+    doc.uri += ".git";
   }
 
   doc.uriNeedsMigration = false;

@@ -1,17 +1,22 @@
-import { ListGroup, ListGroupItem } from 'insomnia-components';
-import React, { FunctionComponent } from 'react';
+import { ListGroup, ListGroupItem } from "insomnia-components";
+import React, { FunctionComponent } from "react";
 
-import { ProtoDirectory } from '../../../models/proto-directory';
-import type { ProtoFile } from '../../../models/proto-file';
-import type { ExpandedProtoDirectory } from '../../redux/proto-selectors';
-import { ProtoDirectoryListItem } from './proto-directory-list-item';
-import { ProtoFileListItem } from './proto-file-list-item';
+import type { ExpandedProtoDirectory } from "../../redux/proto-selectors";
+import { ProtoDirectory } from "../../../models/proto-directory";
+import { ProtoDirectoryListItem } from "./proto-directory-list-item";
+import type { ProtoFile } from "../../../models/proto-file";
+import { ProtoFileListItem } from "./proto-file-list-item";
 
 export type SelectProtoFileHandler = (id: string) => void;
 export type DeleteProtoFileHandler = (protofile: ProtoFile) => Promise<void>;
-export type DeleteProtoDirectoryHandler = (protoDirectory: ProtoDirectory) => Promise<void>;
+export type DeleteProtoDirectoryHandler = (
+  protoDirectory: ProtoDirectory
+) => Promise<void>;
 export type UpdateProtoFileHandler = (protofile: ProtoFile) => Promise<void>;
-export type RenameProtoFileHandler = (protoFile: ProtoFile, name: string) => Promise<void>;
+export type RenameProtoFileHandler = (
+  protoFile: ProtoFile,
+  name: string
+) => Promise<void>;
 
 interface Props {
   protoDirectories: ExpandedProtoDirectory[];
@@ -26,7 +31,7 @@ interface Props {
 const recursiveRender = (
   { dir, files, subDirs }: ExpandedProtoDirectory,
   props: Props,
-  indent: number,
+  indent: number
 ) => {
   const {
     handleDelete,
@@ -44,7 +49,7 @@ const recursiveRender = (
       handleDeleteDirectory={handleDeleteDirectory}
     />
   );
-  const fileNodes = files.map(f => (
+  const fileNodes = files.map((f) => (
     <ProtoFileListItem
       key={f._id}
       protoFile={f}
@@ -56,15 +61,15 @@ const recursiveRender = (
       indentLevel={indent}
     />
   ));
-  const subDirNodes = subDirs.map(sd => recursiveRender(sd, props, indent));
+  const subDirNodes = subDirs.map((sd) => recursiveRender(sd, props, indent));
   return [dirNode, ...fileNodes, ...subDirNodes];
 };
 
-export const ProtoFileList: FunctionComponent<Props> = props => (
+export const ProtoFileList: FunctionComponent<Props> = (props) => (
   <ListGroup bordered>
     {!props.protoDirectories.length && (
       <ListGroupItem>No proto files exist for this workspace</ListGroupItem>
     )}
-    {props.protoDirectories.map(dir => recursiveRender(dir, props, 0))}
+    {props.protoDirectories.map((dir) => recursiveRender(dir, props, 0))}
   </ListGroup>
 );

@@ -1,8 +1,8 @@
-import fs from 'fs';
-import path from 'path';
+import * as models from "../../../models";
 
-import * as models from '../../../models';
-import type { ProtoDirectory } from '../../../models/proto-directory';
+import type { ProtoDirectory } from "../../../models/proto-directory";
+import fs from "fs";
+import path from "path";
 
 interface IngestResult {
   createdDir?: ProtoDirectory | null;
@@ -29,22 +29,26 @@ class ProtoDirectoryLoader {
     const extension = path.extname(entryPath);
 
     // Ignore if not a .proto file
-    if (extension !== '.proto') {
+    if (extension !== ".proto") {
       return false;
     }
 
-    const contents = await fs.promises.readFile(entryPath, 'utf-8');
+    const contents = await fs.promises.readFile(entryPath, "utf-8");
     const name = path.basename(entryPath);
     const { _id } = await models.protoFile.create({
       name,
       parentId,
       protoText: contents,
+      protoPath: entryPath,
     });
     this.createdIds.push(_id);
     return true;
   }
 
-  async _ingest(dirPath: string, parentId: string): Promise<ProtoDirectory | null> {
+  async _ingest(
+    dirPath: string,
+    parentId: string
+  ): Promise<ProtoDirectory | null> {
     // Check exists
     if (!fs.existsSync(dirPath)) {
       return null;
@@ -72,6 +76,7 @@ class ProtoDirectoryLoader {
         _id: newDirId,
         name: path.basename(dirPath),
         parentId,
+        protoPath: dirPath,
       });
       this.createdIds.push(createdProtoDir._id);
       return createdProtoDir;
@@ -98,7 +103,10 @@ class ProtoDirectoryLoader {
   }
 }
 
-const ingestProtoDirectory = async (dirPath: string, workspaceId: string): Promise<IngestResult> =>
+const ingestProtoDirectory = async (
+  dirPath: string,
+  workspaceId: string
+): Promise<IngestResult> =>
   new ProtoDirectoryLoader(dirPath, workspaceId).load();
 
 export default ingestProtoDirectory;
